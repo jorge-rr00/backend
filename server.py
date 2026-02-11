@@ -1,6 +1,7 @@
 import os
 import uuid
 import re
+import shutil
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -175,6 +176,23 @@ def clear_session(session_id):
     if not db.session_exists(session_id):
         return jsonify({"ok": False, "error": "session not found"}), 404
     db.clear_session(session_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/sessions/<session_id>", methods=["DELETE"])
+def delete_session(session_id):
+    if not db.session_exists(session_id):
+        return jsonify({"ok": False, "error": "session not found"}), 404
+    db.delete_session(session_id)
+
+    # remove uploaded files for this session, if any
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    if os.path.isdir(session_dir):
+        try:
+            shutil.rmtree(session_dir)
+        except Exception:
+            pass
+
     return jsonify({"ok": True})
 
 
