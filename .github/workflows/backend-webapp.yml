@@ -18,15 +18,13 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        working-directory: backend
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Zip artifact
-        working-directory: backend
         run: |
-          zip -r ../backend.zip .
+          zip -r backend.zip .
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
