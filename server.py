@@ -3,7 +3,7 @@ import uuid
 import re
 import shutil
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 
 from agents_v3 import AzureOpenAIClient, GuardrailAgent, OrchestratorAgent, VoiceOrchestratorAgent
@@ -209,6 +209,47 @@ def get_session_messages(session_id):
             m["content"] = strip_hidden_doc_tags(m.get("content", ""))
 
     return jsonify({"ok": True, "messages": msgs})
+
+
+@app.route("/api/tts", methods=["POST"])
+def tts():
+    data = request.get_json(silent=True) or {}
+    text = (data.get("text") or "").strip()
+    if not text:
+        return jsonify({"ok": False, "error": "text required"}), 400
+
+    if len(text) > 4000:
+        text = text[:4000]
+
+    key = os.getenv("AZURE_SPEECH_KEY")
+    region = os.getenv("AZURE_SPEECH_REGION")
+    if not key or not region:
+        return jsonify({"ok": False, "error": "AZURE_SPEECH_KEY/REGION missing"}), 500
+
+    try:
+        import azure.cognitiveservices.speech as speechsdk
+
+        speech_config = speechsdk.SpeechConfig(subscription=key, region=region)
+        voice = os.getenv("AZURE_SPEECH_VOICE", "es-ES-AlvaroNeural")
+        speech_config.speech_synthesis_voice_name = voice
+        speech_config.set_speech_synthesis_output_format(
+            speechsdk.SpeechSynthesisOutputFormat.Audio24Khz48KBitRateMonoMp3
+        )
+
+        synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=None)
+        result = synthesizer.speak_text_async(text).get()
+
+        if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+            audio_data = result.audio_data
+            return Response(audio_data, mimetype="audio/mpeg", headers={"Cache-Control": "no-store"})
+
+        if result.reason == speechsdk.ResultReason.Canceled:
+            cancellation = speechsdk.CancellationDetails(result)
+            return jsonify({"ok": False, "error": cancellation.error_details or "canceled"}), 500
+
+        return jsonify({"ok": False, "error": "tts_failed"}), 500
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 if __name__ == "__main__":
