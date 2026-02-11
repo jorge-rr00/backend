@@ -171,6 +171,20 @@ def list_sessions():
     return jsonify({"ok": True, "sessions": lst})
 
 
+@app.route("/api/sessions", methods=["DELETE"])
+def delete_all_sessions():
+    db.delete_all_sessions()
+
+    if os.path.isdir(UPLOADS_DIR):
+        try:
+            shutil.rmtree(UPLOADS_DIR)
+        except Exception:
+            pass
+        os.makedirs(UPLOADS_DIR, exist_ok=True)
+
+    return jsonify({"ok": True})
+
+
 @app.route("/api/sessions/<session_id>/clear", methods=["POST"])
 def clear_session(session_id):
     if not db.session_exists(session_id):

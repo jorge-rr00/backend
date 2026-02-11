@@ -175,3 +175,13 @@ def delete_session(session_id: str) -> None:
             conn.commit()
     finally:
         put_conn(conn)
+
+
+def delete_all_sessions() -> None:
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"DELETE FROM {SESSIONS_TABLE}")
+            conn.commit()
+    finally:
+        put_conn(conn)
